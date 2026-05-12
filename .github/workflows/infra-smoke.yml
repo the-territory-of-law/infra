@@ -1,0 +1,61 @@
+name: Infra Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Start compose stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare env
+        run: |
+          cp .env.example .env
+
+      - name: Start monitoring stack
+        run: |
+          docker compose --profile monitoring up -d loki alloy grafana
+
+      - name: Show containers
+        run: |
+          docker compose --profile monitoring ps
+
+      - name: Wait for services
+        run: |
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:3100/ready && \
+            curl -fsS http://127.0.0.1:3001/api/health && \
+            curl -fsS http://127.0.0.1:12345/-/ready && \
+            exit 0
+
+            echo "services are not ready yet"
+            sleep 2
+          done
+
+          docker compose --profile monitoring logs
+          exit 1
+
+      - name: Check Alloy health
+        run: |
+          curl -fsS http://127.0.0.1:12345/-/healthy
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          docker compose --profile monitoring logs
+
+      - name: Stop stack
+        if: always()
+        run: |
+          docker compose --profile monitoring down -v

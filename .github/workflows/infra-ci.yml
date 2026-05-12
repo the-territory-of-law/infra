@@ -1,0 +1,44 @@
+name: Infra CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate infra files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare env
+        run: |
+          cp .env.example .env
+
+      - name: Install YAML tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint
+
+      - name: Lint YAML
+        run: |
+          yamllint docker-compose.yml infra/monitoring .github/workflows
+
+      - name: Validate docker compose
+        run: |
+          docker compose config >/dev/null
+
+      - name: Validate docker compose with monitoring profile
+        run: |
+          docker compose --profile monitoring config >/dev/null
