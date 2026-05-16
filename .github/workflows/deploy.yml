@@ -50,7 +50,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            cd /infra
+            cd infra
 
             git fetch origin main
             git reset --hard origin/main
